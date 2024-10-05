@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Highcharts from 'highcharts';
 import HighchartsReact from 'highcharts-react-official';
 import HighchartsMap from 'highcharts/modules/map';
@@ -23,9 +23,30 @@ const MapQuest = ({ score, setScore }) => {
   const [showHint, setShowHint] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState('World');
   const [countryList, setCountryList] = useState([]);
+  const [timer, setTimer] = useState(0);
+  const [useTimer, setUseTimer] = useState(true);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    if (useTimer && !showModal) {
+      timerRef.current = setInterval(() => {
+        setTimer(prevTimer => prevTimer + 1);
+      }, 1000);
+    } else {
+      clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [useTimer, showModal]);
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
 
   const checkAnswer = (countryCode) => {
     if (!showAnswer) {
+      clearInterval(timerRef.current);
       if (countryCode === targetCountry) {
         setScore(score + 1);
         alert('Correct! Your score: ' + (score + 1));
@@ -33,6 +54,11 @@ const MapQuest = ({ score, setScore }) => {
       } else {
         const clickedCountryName = countryData[countryCode]['name'] || 'Unknown country';
         alert(`Wrong country! You clicked on ${clickedCountryName}. Try again.`);
+      }
+      if (useTimer) {
+        timerRef.current = setInterval(() => {
+          setTimer(prevTimer => prevTimer + 1);
+        }, 1000);
       }
     }
   };
@@ -51,8 +77,10 @@ const MapQuest = ({ score, setScore }) => {
       setRound(round + 1);
     } else {
       setShowModal(true);
+      clearInterval(timerRef.current);
     }
   };
+
   const selectCountries = (region) => {
     // Flatten the dictionary into an array based on weights  
     let pool = [];  
@@ -78,6 +106,12 @@ const MapQuest = ({ score, setScore }) => {
     setCountryList([]);
     setScore(0);
     setRound(0);
+    setTimer(0);
+    if (useTimer) {
+      timerRef.current = setInterval(() => {
+        setTimer(prevTimer => prevTimer + 1);
+      }, 1000);
+    }
     nextQuestion();
   };
 
@@ -145,6 +179,7 @@ const MapQuest = ({ score, setScore }) => {
             <span className="label region-label">Region: {selectedRegion}</span>
             <span className="label round-label">Round {round}/10</span>
             <span className="label score-label">Score: {score}</span>
+            {useTimer && <span className="label timer-label">Time: {formatTime(timer)}</span>}
             <hr style={{ border: '1px solid transparent' }} />
             {!showModal && (
               <>
@@ -182,12 +217,23 @@ const MapQuest = ({ score, setScore }) => {
             <div className="modal-content">
               <h2>{!selectedRegion ? 'Select a Region to Start the Game' : 'Game Over!'}</h2>
               <p>Your total score is: {!selectedRegion ? 0 : score}</p>
+              {useTimer && <p>Total time: {formatTime(timer)}</p>}
               <select onChange={handleRegionSelect} value={selectedRegion || ''}>
                 <option value="" disabled>Select a region</option>
                 {Object.keys(topCountries).map(region => (
                   <option key={region} value={region}>{region}</option>
                 ))}
               </select>
+              <div>
+                <label>
+                  <input 
+                    type="checkbox" 
+                    checked={useTimer} 
+                    onChange={() => setUseTimer(!useTimer)} 
+                  />
+                  Use Timer
+                </label>
+              </div>
               <button className="map-button" id="play-again-btn" onClick={startNewGame}>
                 {!selectedRegion ? 'Start Game' : 'Play again'}
               </button>
