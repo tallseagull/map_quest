@@ -16,18 +16,13 @@ if (typeof window !== 'undefined') {
 }  
   
 const MapQuest = ({ score, setScore }) => {
-  const [targetCountry, setTargetCountry] = useState(topCountries[Math.floor(Math.random() * topCountries.length)]);
+  const [targetCountry, setTargetCountry] = useState(null);
   const [showAnswer, setShowAnswer] = useState(false);
-  const [round, setRound] = useState(1);
-  const [showModal, setShowModal] = useState(false);
+  const [round, setRound] = useState(0);
+  const [showModal, setShowModal] = useState(true);
   const [showHint, setShowHint] = useState(false);
-
-  useEffect(() => {
-    if (round === 10) {
-      setShowAnswer(true);
-      setShowModal(true);
-    }
-  }, [round, score]);
+  const [selectedRegion, setSelectedRegion] = useState('World');
+  const [countryList, setCountryList] = useState([]);
 
   const checkAnswer = (countryCode) => {
     if (!showAnswer) {
@@ -44,19 +39,52 @@ const MapQuest = ({ score, setScore }) => {
   
   const nextQuestion = () => {
     if (round < 10) {
-      const randomIndex = Math.floor(Math.random() * topCountries.length);
-      setTargetCountry(topCountries[randomIndex]);
+      if (countryList.length === 0) {
+        const selectedCountries = selectCountries(selectedRegion);
+        setCountryList(selectedCountries);
+        setTargetCountry(selectedCountries[round]);
+      } else {
+        setTargetCountry(countryList[round]);
+      }
       setShowAnswer(false);
       setShowHint(false);
       setRound(round + 1);
+    } else {
+      setShowModal(true);
     }
+  };
+  const selectCountries = (region) => {
+    // Flatten the dictionary into an array based on weights  
+    let pool = [];  
+    for (const [key, weight] of Object.entries(topCountries[region])) {  
+        for (let i = 0; i < weight; i++) {  
+            pool.push(key);  
+        }  
+    } 
+
+    const selectedCountries = [];    
+    while (selectedCountries.length < 12 && pool.length > 0) {
+      const randomIndex = Math.floor(Math.random() * pool.length);
+      const selectedCountry = pool[randomIndex];
+      if (!selectedCountries.includes(selectedCountry)) {
+        selectedCountries.push(selectedCountry);
+      }
+    }
+    return selectedCountries;
   };
 
   const startNewGame = () => {
-    setRound(0);
-    setScore(0);
     setShowModal(false);
+    setCountryList([]);
+    setScore(0);
+    setRound(0);
     nextQuestion();
+  };
+
+  const handleRegionSelect = (event) => {
+    setSelectedRegion(event.target.value);
+    setCountryList([]); // Reset country list to ensure new region is used
+    selectCountries(event.target.value);
   };
 
   const mapOptions = {
@@ -104,54 +132,69 @@ const MapQuest = ({ score, setScore }) => {
 
   return (
     <div className="map-quest-container">
-      <div className="map-section" style={{ width: '80%' }}>
-        <HighchartsReact
-          highcharts={Highcharts}
-          constructorType={'mapChart'}
-          options={mapOptions}
-        />
-      </div>
-      <div className="info-section">
-        <div className='label-container'>
-          <span className="label round-label">Round {round}/10</span>
-          <span className="label score-label">Score: {score}</span>
-          <hr style={{ border: '1px solid transparent' }} />
-          <span className="label country-label">Find this country:</span>
-          <span className="label country-name">{countryData[targetCountry].name}</span>
-          {showHint && (
-            <span className="label hint-label">Hint: {countryData[targetCountry].location}</span>
-          )}
+      <>
+        <div className="map-section" style={{ width: '80%' }}>
+          <HighchartsReact
+            highcharts={Highcharts}
+            constructorType={'mapChart'}
+            options={mapOptions}
+          />
         </div>
-        <div className='button-container'>
-          {round > 10 ? (
-            <button className="map-button" onClick={startNewGame}>
-              New Game
-            </button>
-          ) : showAnswer ? (
-              <button className="map-button" onClick={nextQuestion}>
-                Next
+        <div className="info-section">
+          <div className='label-container'>
+            <span className="label region-label">Region: {selectedRegion}</span>
+            <span className="label round-label">Round {round}/10</span>
+            <span className="label score-label">Score: {score}</span>
+            <hr style={{ border: '1px solid transparent' }} />
+            {!showModal && (
+              <>
+                <span className="label country-label">Find this country:</span>
+                <span className="label country-name">{countryData[targetCountry]?.name}</span>
+              </>
+            )}
+            {showHint && (
+              <span className="label hint-label">Hint: {countryData[targetCountry]?.location}</span>
+            )}
+          </div>
+          <div className='button-container'>
+            {round > 10 ? (
+              <button className="map-button" onClick={startNewGame}>
+                New Game
               </button>
-          ) : (
-            <>
-              <button className="map-button" onClick={() => setShowAnswer(true)}>
-                Show Me
-              </button>
-              <button className="map-button" onClick={() => setShowHint(true)}>
-                Show Hint
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-      {showModal && (
-        <div className="game-over-modal show">
-          <div className="modal-content">
-            <h2>Game Over!</h2>
-            <p>Your total score is: {score}</p>
-            <button className="map-button" id="play-again-btn" onClick={startNewGame}>Play again</button>
+            ) : showAnswer ? (
+                <button className="map-button" onClick={nextQuestion}>
+                  Next
+                </button>
+            ) : (
+              <>
+                <button className="map-button" onClick={() => setShowAnswer(true)}>
+                  Show Me
+                </button>
+                <button className="map-button" onClick={() => setShowHint(true)}>
+                  Show Hint
+                </button>
+              </>
+            )}
           </div>
         </div>
-      )}
+        {showModal ? (
+          <div className="game-over-modal show">
+            <div className="modal-content">
+              <h2>{!selectedRegion ? 'Select a Region to Start the Game' : 'Game Over!'}</h2>
+              <p>Your total score is: {!selectedRegion ? 0 : score}</p>
+              <select onChange={handleRegionSelect} value={selectedRegion || ''}>
+                <option value="" disabled>Select a region</option>
+                {Object.keys(topCountries).map(region => (
+                  <option key={region} value={region}>{region}</option>
+                ))}
+              </select>
+              <button className="map-button" id="play-again-btn" onClick={startNewGame}>
+                {!selectedRegion ? 'Start Game' : 'Play again'}
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </>
     </div>
   );
 };
