@@ -26,6 +26,7 @@ const MapQuest = ({ score, setScore }) => {
   const [timer, setTimer] = useState(0);
   const [useTimer, setUseTimer] = useState(true);
   const timerRef = useRef(null);
+  const [difficulty, setDifficulty] = useState(0);
 
   useEffect(() => {
     if (useTimer && !showModal) {
@@ -48,12 +49,15 @@ const MapQuest = ({ score, setScore }) => {
     if (!showAnswer) {
       clearInterval(timerRef.current);
       if (countryCode === targetCountry) {
-        setScore(score + 1);
-        alert('Correct! Your score: ' + (score + 1));
+        alert('Correct! Your score: ' + (score + 3));
+        setScore(score + 3);
         nextQuestion();
       } else {
         const clickedCountryName = countryData[countryCode]['name'] || 'Unknown country';
         alert(`Wrong country! You clicked on ${clickedCountryName}. Try again.`);
+        if (difficulty === 2) {
+          setScore(score - 1);
+        }
       }
       if (useTimer) {
         timerRef.current = setInterval(() => {
@@ -85,9 +89,13 @@ const MapQuest = ({ score, setScore }) => {
     // Flatten the dictionary into an array based on weights  
     let pool = [];  
     for (const [key, weight] of Object.entries(topCountries[region])) {  
-        for (let i = 0; i < weight; i++) {  
-            pool.push(key);  
-        }  
+        if ((difficulty === 0 && weight >= 9) || 
+            (difficulty === 1 && weight >= 7) || 
+            (difficulty === 2)) {
+            for (let i = 0; i < weight; i++) {  
+                pool.push(key);  
+            }
+        }
     } 
 
     const selectedCountries = [];    
@@ -119,6 +127,10 @@ const MapQuest = ({ score, setScore }) => {
     setSelectedRegion(event.target.value);
     setCountryList([]); // Reset country list to ensure new region is used
     selectCountries(event.target.value);
+  };
+
+  const handleDifficultySelect = (event) => {
+    setDifficulty(parseInt(event.target.value, 10));
   };
 
   const mapOptions = {
@@ -233,6 +245,16 @@ const MapQuest = ({ score, setScore }) => {
                   />
                   Use Timer
                 </label>
+              </div>
+              <div>
+                <div className="new-game-label" style={{ marginTop: '10px' }}>
+                  <div>Difficulty Level:</div>
+                  <select onChange={handleDifficultySelect} value={difficulty} style={{ marginTop: '5px' }}>
+                    <option value="0">Medium</option>
+                    <option value="1">Hard</option>
+                    <option value="2">Expert</option>
+                  </select>
+                </div>
               </div>
               <button className="map-button" id="play-again-btn" onClick={startNewGame}>
                 {!selectedRegion ? 'Start Game' : 'Play again'}
