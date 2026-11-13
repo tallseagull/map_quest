@@ -26,7 +26,9 @@ const MapQuest = ({ score, setScore }) => {
   const [timer, setTimer] = useState(0);
   const [useTimer, setUseTimer] = useState(true);
   const timerRef = useRef(null);
+  const pendingCorrectAdvanceRef = useRef(false);
   const [difficulty, setDifficulty] = useState(0);
+  const [answerModal, setAnswerModal] = useState(null);
 
   useEffect(() => {
     if (useTimer && !showModal) {
@@ -45,24 +47,49 @@ const MapQuest = ({ score, setScore }) => {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  const checkAnswer = (countryCode) => {
-    if (!showAnswer) {
-      clearInterval(timerRef.current);
-      if (countryCode === targetCountry) {
-        alert('Correct! Your score: ' + (score + 3));
-        setScore(score + 3);
-        nextQuestion();
-      } else {
-        const clickedCountryName = countryData[countryCode]['name'] || 'Unknown country';
-        alert(`Wrong country! You clicked on ${clickedCountryName}. Try again.`);
-        if (difficulty === 2) {
-          setScore(score - 1);
-        }
-      }
-      if (useTimer) {
+  const dismissAnswerModal = () => {
+    const advanceRound = pendingCorrectAdvanceRef.current;
+    pendingCorrectAdvanceRef.current = false;
+    setAnswerModal(null);
+
+    if (advanceRound) {
+      const endingGame = round >= 10;
+      nextQuestion();
+      if (!endingGame && useTimer) {
         timerRef.current = setInterval(() => {
           setTimer(prevTimer => prevTimer + 1);
         }, 1000);
+      }
+    } else if (useTimer) {
+      timerRef.current = setInterval(() => {
+        setTimer(prevTimer => prevTimer + 1);
+      }, 1000);
+    }
+  };
+
+  const checkAnswer = (countryCode) => {
+    if (!showAnswer && !answerModal) {
+      clearInterval(timerRef.current);
+      if (countryCode === targetCountry) {
+        const newScore = score + 3;
+        setScore(newScore);
+        pendingCorrectAdvanceRef.current = true;
+        setAnswerModal({
+          variant: 'correct',
+          title: 'Correct!',
+          message: `Your score: ${newScore}`,
+        });
+      } else {
+        const clickedCountryName = countryData[countryCode]?.name || 'Unknown country';
+        pendingCorrectAdvanceRef.current = false;
+        if (difficulty === 2) {
+          setScore(score - 1);
+        }
+        setAnswerModal({
+          variant: 'incorrect',
+          title: 'Wrong country!',
+          message: `You clicked on ${clickedCountryName}. Try again.`,
+        });
       }
     }
   };
@@ -224,6 +251,17 @@ const MapQuest = ({ score, setScore }) => {
             )}
           </div>
         </div>
+        {answerModal ? (
+          <div className="answer-feedback-modal">
+            <div className={`modal-content answer-feedback-content answer-feedback-${answerModal.variant}`}>
+              <h2>{answerModal.title}</h2>
+              <p>{answerModal.message}</p>
+              <button type="button" className="map-button" onClick={dismissAnswerModal}>
+                Ok
+              </button>
+            </div>
+          </div>
+        ) : null}
         {showModal ? (
           <div className="game-over-modal show">
             <div className="modal-content">
