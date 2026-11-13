@@ -129,24 +129,33 @@
 }
 
 .game-over-modal {
-    display: none;
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
-    z-index: 1000; /* Ensure it overlays above other elements */
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.55);
+    z-index: 20000;
     display: flex;
     justify-content: center;
     align-items: center;
+    pointer-events: auto;
 }
 
-.game-over-modal .modal-content {
+.game-over-modal .modal-content,
+.setup-modal-content {
+    position: relative;
+    z-index: 20001;
     background-color: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 24px 24px 88px;
+    border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+    max-width: min(420px, 92vw);
+    width: 100%;
+    pointer-events: auto;
+}
+
+.setup-modal-content .map-button#play-again-btn {
+    margin-left: 0;
+    margin-right: 0;
+    width: 100%;
 }
 
 .new-game-label {

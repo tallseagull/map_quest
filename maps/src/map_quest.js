@@ -26,9 +26,14 @@ const MapQuest = ({ score, setScore }) => {
   const [timer, setTimer] = useState(0);
   const [useTimer, setUseTimer] = useState(true);
   const timerRef = useRef(null);
+  const roundRef = useRef(0);
   const pendingCorrectAdvanceRef = useRef(false);
   const [difficulty, setDifficulty] = useState(0);
   const [answerModal, setAnswerModal] = useState(null);
+
+  useEffect(() => {
+    roundRef.current = round;
+  }, [round]);
 
   useEffect(() => {
     if (useTimer && !showModal) {
@@ -47,23 +52,29 @@ const MapQuest = ({ score, setScore }) => {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
+  const startTimer = () => {
+    if (!useTimer) {
+      return;
+    }
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setTimer((prevTimer) => prevTimer + 1);
+    }, 1000);
+  };
+
   const dismissAnswerModal = () => {
     const advanceRound = pendingCorrectAdvanceRef.current;
     pendingCorrectAdvanceRef.current = false;
     setAnswerModal(null);
 
     if (advanceRound) {
-      const endingGame = round >= 10;
-      nextQuestion();
-      if (!endingGame && useTimer) {
-        timerRef.current = setInterval(() => {
-          setTimer(prevTimer => prevTimer + 1);
-        }, 1000);
+      const endingGame = roundRef.current >= 10;
+      advanceRoundOrEndGame();
+      if (!endingGame) {
+        startTimer();
       }
-    } else if (useTimer) {
-      timerRef.current = setInterval(() => {
-        setTimer(prevTimer => prevTimer + 1);
-      }, 1000);
+    } else {
+      startTimer();
     }
   };
 
@@ -94,22 +105,29 @@ const MapQuest = ({ score, setScore }) => {
     }
   };
   
-  const nextQuestion = () => {
-    if (round < 10) {
-      if (countryList.length === 0) {
-        const selectedCountries = selectCountries(selectedRegion);
-        setCountryList(selectedCountries);
-        setTargetCountry(selectedCountries[round]);
-      } else {
-        setTargetCountry(countryList[round]);
-      }
-      setShowAnswer(false);
-      setShowHint(false);
-      setRound(round + 1);
-    } else {
+  const advanceRoundOrEndGame = () => {
+    const currentRound = roundRef.current;
+
+    if (currentRound >= 10) {
       setShowModal(true);
       clearInterval(timerRef.current);
+      return;
     }
+
+    if (countryList.length === 0) {
+      const selectedCountries = selectCountries(selectedRegion);
+      setCountryList(selectedCountries);
+      setTargetCountry(selectedCountries[currentRound]);
+    } else {
+      setTargetCountry(countryList[currentRound]);
+    }
+    setShowAnswer(false);
+    setShowHint(false);
+    setRound(currentRound + 1);
+  };
+
+  const nextQuestion = () => {
+    advanceRoundOrEndGame();
   };
 
   const selectCountries = (region) => {
@@ -154,13 +172,7 @@ const MapQuest = ({ score, setScore }) => {
     setCountryList(selectedCountries);
     setTargetCountry(selectedCountries[0]);
     setRound(1);
-
-    clearInterval(timerRef.current);
-    if (useTimer) {
-      timerRef.current = setInterval(() => {
-        setTimer((prevTimer) => prevTimer + 1);
-      }, 1000);
-    }
+    roundRef.current = 1;
   };
 
   const handleRegionSelect = (event) => {
@@ -255,30 +267,32 @@ const MapQuest = ({ score, setScore }) => {
             )}
           </div>
           <div className='button-container'>
-            {round > 10 ? (
-              <button className="map-button" onClick={startNewGame}>
-                New Game
-              </button>
-            ) : showAnswer ? (
-                <button className="map-button" onClick={nextQuestion}>
+            {!showModal && (
+              round > 10 ? (
+                <button type="button" className="map-button" onClick={startNewGame}>
+                  New Game
+                </button>
+              ) : showAnswer ? (
+                <button type="button" className="map-button" onClick={nextQuestion}>
                   Next
                 </button>
-            ) : (
-              <>
-                <button className="map-button" onClick={() => setShowAnswer(true)}>
-                  Show Me
-                </button>
-                <button className="map-button" onClick={() => setShowHint(true)}>
-                  Show Hint
-                </button>
-              </>
+              ) : (
+                <>
+                  <button type="button" className="map-button" onClick={() => setShowAnswer(true)}>
+                    Show Me
+                  </button>
+                  <button type="button" className="map-button" onClick={() => setShowHint(true)}>
+                    Show Hint
+                  </button>
+                </>
+              )
             )}
           </div>
         </div>
         {showModal ? (
-          <div className="game-over-modal show">
-            <div className="modal-content">
-              <h2>{round >= 10 ? 'Game Over!' : 'Select a Region to Start the Game'}</h2>
+          <div className="game-over-modal show" role="dialog" aria-modal="true" aria-labelledby="setup-modal-title">
+            <div className="modal-content setup-modal-content">
+              <h2 id="setup-modal-title">{round >= 10 ? 'Game Over!' : 'Select a Region to Start the Game'}</h2>
               {round >= 10 && <p>Your total score is: {score}</p>}
               {useTimer && <p>Total time: {formatTime(timer)}</p>}
               <select onChange={handleRegionSelect} value={selectedRegion || ''}>
