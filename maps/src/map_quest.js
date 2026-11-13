@@ -137,17 +137,30 @@ const MapQuest = ({ score, setScore }) => {
   };
 
   const startNewGame = () => {
+    if (!selectedRegion) {
+      return;
+    }
+
     setShowModal(false);
+    setAnswerModal(null);
+    setShowAnswer(false);
+    setShowHint(false);
+    pendingCorrectAdvanceRef.current = false;
     setCountryList([]);
     setScore(0);
-    setRound(0);
     setTimer(0);
+
+    const selectedCountries = selectCountries(selectedRegion);
+    setCountryList(selectedCountries);
+    setTargetCountry(selectedCountries[0]);
+    setRound(1);
+
+    clearInterval(timerRef.current);
     if (useTimer) {
       timerRef.current = setInterval(() => {
-        setTimer(prevTimer => prevTimer + 1);
+        setTimer((prevTimer) => prevTimer + 1);
       }, 1000);
     }
-    nextQuestion();
   };
 
   const handleRegionSelect = (event) => {
@@ -206,12 +219,23 @@ const MapQuest = ({ score, setScore }) => {
   return (
     <div className="map-quest-container">
       <>
-        <div className="map-section" style={{ width: '80%' }}>
+        <div className="map-section">
           <HighchartsReact
             highcharts={Highcharts}
             constructorType={'mapChart'}
             options={mapOptions}
           />
+          {answerModal ? (
+            <div className="answer-feedback-modal" role="dialog" aria-modal="true">
+              <div className={`answer-feedback-content answer-feedback-${answerModal.variant}`}>
+                <h2>{answerModal.title}</h2>
+                <p>{answerModal.message}</p>
+                <button type="button" className="map-button answer-feedback-ok" onClick={dismissAnswerModal}>
+                  Ok
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
         <div className="info-section">
           <div className='label-container'>
@@ -251,22 +275,11 @@ const MapQuest = ({ score, setScore }) => {
             )}
           </div>
         </div>
-        {answerModal ? (
-          <div className="answer-feedback-modal">
-            <div className={`modal-content answer-feedback-content answer-feedback-${answerModal.variant}`}>
-              <h2>{answerModal.title}</h2>
-              <p>{answerModal.message}</p>
-              <button type="button" className="map-button" onClick={dismissAnswerModal}>
-                Ok
-              </button>
-            </div>
-          </div>
-        ) : null}
         {showModal ? (
           <div className="game-over-modal show">
             <div className="modal-content">
-              <h2>{!selectedRegion ? 'Select a Region to Start the Game' : 'Game Over!'}</h2>
-              <p>Your total score is: {!selectedRegion ? 0 : score}</p>
+              <h2>{round >= 10 ? 'Game Over!' : 'Select a Region to Start the Game'}</h2>
+              {round >= 10 && <p>Your total score is: {score}</p>}
               {useTimer && <p>Total time: {formatTime(timer)}</p>}
               <select onChange={handleRegionSelect} value={selectedRegion || ''}>
                 <option value="" disabled>Select a region</option>
@@ -294,8 +307,14 @@ const MapQuest = ({ score, setScore }) => {
                   </select>
                 </div>
               </div>
-              <button className="map-button" id="play-again-btn" onClick={startNewGame}>
-                {!selectedRegion ? 'Start Game' : 'Play again'}
+              <button
+                type="button"
+                className="map-button"
+                id="play-again-btn"
+                onClick={startNewGame}
+                disabled={!selectedRegion}
+              >
+                {round >= 10 ? 'Play again' : 'Start Game'}
               </button>
             </div>
           </div>
